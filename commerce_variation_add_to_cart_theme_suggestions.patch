@@ -1,0 +1,98 @@
+diff --git a/commerce_variation_add_to_cart.module b/commerce_variation_add_to_cart.module
+index 49725da..c395808 100644
+--- a/commerce_variation_add_to_cart.module
++++ b/commerce_variation_add_to_cart.module
+@@ -14,7 +14,10 @@ function commerce_variation_add_to_cart_theme() {
+       'variables' =>
+         array(
+           'product_id' => NULL,
++          'product_type' => NULL,
+           'variation_id' => NULL,
++          'variation_type' => NULL,
++          'variation' => NULL,
+           'show_price' => NULL,
+           'price_number' => NULL,
+           'price_format' => NULL,
+@@ -22,8 +25,25 @@ function commerce_variation_add_to_cart_theme() {
+           'price_currency' => NULL,
+           'show_quantity' => NULL,
+           'attributes' => NULL,
++          'field_data' => NULL,
+           'destination' => NULL,
+         ),
+     ),
+   );
+ }
++
++/**
++ * Implements hook_theme_suggestions_HOOK().
++ *
++ * @param array $variables
++ * @return array
++ */
++function commerce_variation_add_to_cart_theme_suggestions_variation_add_to_cart_formatter(array $variables) {
++  $original = $variables['theme_hook_original'];
++
++  $suggestions = [];
++  $suggestions[] = $original . '__' . $variables['product_type'];
++  $suggestions[] = $original . '__' . $variables['product_type'] . '_' . $variables['variation_type'];
++
++  return $suggestions;
++}
+diff --git a/src/Plugin/Field/FieldFormatter/VariationAddToCartFormatter.php b/src/Plugin/Field/FieldFormatter/VariationAddToCartFormatter.php
+index 596e81c..d4705bd 100644
+--- a/src/Plugin/Field/FieldFormatter/VariationAddToCartFormatter.php
++++ b/src/Plugin/Field/FieldFormatter/VariationAddToCartFormatter.php
+@@ -2,6 +2,7 @@
+ 
+ namespace Drupal\commerce_variation_add_to_cart\Plugin\Field\FieldFormatter;
+ 
++use Drupal\commerce_product\Entity\ProductVariation;
+ use Drupal\Core\Field\FormatterBase;
+ use Drupal\Core\Field\FieldItemListInterface;
+ use Drupal\Core\Field\FieldDefinitionInterface;
+@@ -122,12 +123,16 @@ class VariationAddToCartFormatter extends FormatterBase {
+     $element = array();
+ 
+     foreach ($items as $delta => $item) {
++
++      /** @var ProductVariation $variation */
+       $variation = \Drupal\commerce_product\Entity\ProductVariation::load($item->target_id);
++
+       $is_active = $variation->isActive();
+ 			if (!$is_active) {
+ 				continue;
+ 			}
+       $product_id = $variation->getProductId();
++			$product = $variation->getProduct();
+       $variation_price = $variation->getPrice();
+       $variation_price_number = $variation_price->getNumber();
+       $variation_price_currency = $variation_price->getCurrencyCode();
+@@ -144,10 +149,19 @@ class VariationAddToCartFormatter extends FormatterBase {
+         }
+       }
+ 
++      // field values
++      $field_data = [];
++      foreach(array_keys($variation->getFields()) as $field_name) {
++        $value = $variation->get($field_name)->getValue();
++        $field_data[$field_name] = $value;
++      }
++
+       $element[$delta] = array(
+         '#theme' => 'variation_add_to_cart_formatter',
+         '#product_id' => $product_id,
++        '#product_type' => $product->bundle(),
+         '#variation_id' => $item->target_id,
++        '#variation_type' => $variation->bundle(),
+         '#show_price' => $this->getSetting('show_price'),
+         '#price_number' => $variation_price_number,
+         '#price_format' => $this->getSetting('price_format'),
+@@ -155,6 +169,7 @@ class VariationAddToCartFormatter extends FormatterBase {
+         '#price_currency' => $variation_price_currency,
+         '#show_quantity' => $this->getSetting('show_quantity') == 1 ? 'number' : 'hidden',
+         '#attributes' => $attributes_values,
++        '#field_data' => $field_data,
+         '#destination' => $current_path,
+       );
+ 
