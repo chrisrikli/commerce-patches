@@ -1,0 +1,13 @@
+diff --git a/modules/cart/src/Form/AddToCartForm.php b/modules/cart/src/Form/AddToCartForm.php
+index d44c131..d811386
+--- a/modules/cart/src/Form/AddToCartForm.php
++++ b/modules/cart/src/Form/AddToCartForm.php
+@@ -144,7 +144,7 @@ class AddToCartForm extends ContentEntityForm {
+     if ($this->operation != 'default') {
+       $form_id = $form_id . '_' . $this->operation;
+     }
+-    $form_id .= '_' . self::$formInstanceId;
++    $form_id .= '_'.$this->entity->getPurchasedEntity()->bundle().'_' . $this->entity->getPurchasedEntity()->id();
+ 
+     return $form_id . '_form';
+   }
